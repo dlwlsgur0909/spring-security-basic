@@ -33,3 +33,17 @@
 - 시큐리티 필터 체인은 일연의 과정들을 수행하는 필터들의 묶음이다
 - 여러개의 시큐리티 필터 체인을 가질 수 있다
   ![spring-security-multiple-filter-chain](./resources/spring-security-multiple-filter-chain.png) 
+
+## DelegatingFilterProxy, FilterChainProxy
+
+### DelegatingFilterProxy
+
+- 클라이언트의 요청을 가로채서 스프링 컨테이너에 들어 있는 `FilterChainProxy`로 요청을 던져준다
+- 요청을 전달하는 매개체 역할이다
+- 스프링 시큐리티 의존성을 추가하면 `SecurityAutoConfiguration`를 통해 자동 등록된다
+  - `SecurityAutoConfiguration`은 스프링 시큐리티 의존성 내부에 포함되어 있다
+
+### FilterChainProxy
+
+- `DelegatingFilterProxy`로 부터 요청을 전달 받는다
+- 등록되어 있는 시큐리티 필터 체인들 중 요청에 알맞은 시큐리티 필터 체인에 요청을 전달한다 
