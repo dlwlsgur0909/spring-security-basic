@@ -487,3 +487,27 @@ public Callable<String> asyncPage() {
   - `DispatcherServlet`은 `Callable` 객체를 `WebAsyncManager`에게 전달
   - `WebAsyncManager`가 비동기 부분을 새로운 쓰레드에서 수행 후 응답
 - `WebAsyncManager`는 `WebAsyncManagerIntegrationFilter`에 의해 기존 쓰레드가 참조하던 `SecurityContext`를 전달 받았기 때문에 `Callable`을 수행할 새로운 쓰레드에게 기존 `SecurityContext`를 전달할 수 있다
+
+## SecurityContextHolderFilter
+
+### SecurityContextHolderFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 세번째에 위치한다
+- 필터를 등록하는 목적은 이전 요청을 통해 이미 인증한 사용자 정보를 현재 요청의 `SecurityContextHolder`의 `SecurityContext`에 할당하는 역할을 수행하고 현재 요청이 끝나면 `SecurityContext`를 초기화한다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동 등록되고 비활성화가 가능하다
+  ```java
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+			http.securityContext((context) -> context.disable());
+
+			return http.build();
+	}
+	``` 
+	- `JWT` 같이 세션을 `STATELESS`하게 유지하는 환경에서도 `SecurityContext`를 비워주는 역할이 필요할 수 있기 때문에 비활성화는 권장되지 않는다
+
+### 기본 로직
+- 이전 요청에서 사용자가 로그인을 했고 세션이 `STATELESS` 상태가 아니라면 서버의 세션(메모리) 또는 레디스와 같은 저장 매체에 유저의 정보가 있을 것이다
+- 해당 저장 매체로부터 유저의 정보를 가져올 때 `SecurityContextRepository`라는 인터페이스의 `loadDeferredContext()` 메서드를 사용해서 불러온다
+  - 만약 유저의 정보가 존재하지 않는다면 빈 객체를 응답한다
+- 이후 불러온 유저 정보를 `SecurityContextHolder`에 `setDefferedContext()` 메서드를 사용해서 저장하고 다음 필터로 넘어간다
+- 응답이 이루어지면 `finally` 구문을 통해 `SecurityContextHolder`에서 유저 정보를 제거한다
