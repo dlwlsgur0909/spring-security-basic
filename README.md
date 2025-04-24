@@ -435,3 +435,10 @@ public class LogoutFilter extends GenericFilterBean {
 - 두 방식의 차이점의 기준은 클라이언트의 한번의 요청에 대해서이다
 - `GenericFilterBean`은 내부적으로 동일한 필터를 여러 번 거치더라도 그 수 만큼 내부 로직이 실행된다
 - `OncePerRequestFilter`는 내부적으로 동일한 필터를 여러 번 거치면 처음 한번만 내부 로직이 실행된다
+
+## DisableEncodeUrlFilter
+
+### DisableEncodeUrlFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`이 기본적으로 등록되는 필터로 가장 처음에 위치한다
+- 필터를 등록하는 목적은 URL 파라미터에 세션 id가 인코딩되어 로그로 유출되는 것을 방지하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 등록이 되며 비활성화는 `SecurityConfig`에서 세션 관리 설정을 disable 하면 된다
