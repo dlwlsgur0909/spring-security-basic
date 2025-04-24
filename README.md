@@ -511,3 +511,30 @@ public Callable<String> asyncPage() {
   - 만약 유저의 정보가 존재하지 않는다면 빈 객체를 응답한다
 - 이후 불러온 유저 정보를 `SecurityContextHolder`에 `setDefferedContext()` 메서드를 사용해서 저장하고 다음 필터로 넘어간다
 - 응답이 이루어지면 `finally` 구문을 통해 `SecurityContextHolder`에서 유저 정보를 제거한다
+
+## HeaderWriterFilter
+
+### HeaderWriterFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 네번째에 위치한다
+- 필터가 등록되는 목적은 HTTP 응답 헤더에 사용자 보호를 위한 시큐리티 관련 헤더를 추가하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록되고 비활성화가 가능하다
+  ```java
+	http.headers((headers) -> headers.disable());
+	``` 
+
+### 헤더 목록
+- 응답 헤더에 시큐리티 관련 헤더를 추가하는 시점은 설정에 따라 2종류로 현재 필터를 통과하는 순간 또는 서블릿에서 응답을 보내며 다시 이 필터를 통과하는 시점으로 나눠진다
+- 기본값은 서블릿에서 응답을 보내면서 이 필터롤 통과할 때이다
+- 필터 적용 전 응답 헤더
+  ![before-header-writer-filter](./resources/before-header-writer-filter.png)
+- 필터 적용 후 응답 헤더
+  ![after-header-writer-filter](./resources/after-header-writer-filter.png)
+- `HeaderWriterFilter` 기본으로 추가되는 헤더
+  |Key                   |Description                                                 |
+	|:---------------------|:----------------------------------------------------------:| 
+	|`X-Content-Type-Options`| 컨텐츠 스니핑을 막기 위해 `nosniff value`를 할당해 서버에서 응답하는 `Content-Type`과 다른 타입일 경우 읽지 못하도록 설정|
+	|`X-XSS-Protection`| XSS 공격 감지 시 로딩 금지|
+	|`Cache-Control`| 이전에 받았던 데이터와 현재 보낼 데이터가 같다면 로딩에 대한 여부|
+	|`Pragma`| HTTP/1.0 방식에서 사용하던 `Cache-Control`|
+	|`Expires`| 서버에서 보낼 데이터를 브라우저에서 캐싱할 시간|
+	|`X-Frame-Options`| 브라우저가 응답 데이터를 iframe, frame, embed, object 태그에서 로딩해도 되는 여부
