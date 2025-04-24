@@ -427,3 +427,11 @@ public class LogoutFilter extends GenericFilterBean {
   - `doFilter()`
 - `OncePerRequestFilter`
   - `doFilterInternal()`
+
+## GenericFilterBean, OncePerRequestFilter
+
+### GenericFilterBean vs OncePerRequestFilter
+- `SecurityFilterChain`에 담겨 있는 필터는 `GenericFilterBean`을 기반으로 구현한 필터가 있고 `GenericFilterBean`을 상속한 `OncePerRequestFilter`를 기반으로 구현한 필터도 있다
+- 두 방식의 차이점의 기준은 클라이언트의 한번의 요청에 대해서이다
+- `GenericFilterBean`은 내부적으로 동일한 필터를 여러 번 거치더라도 그 수 만큼 내부 로직이 실행된다
+- `OncePerRequestFilter`는 내부적으로 동일한 필터를 여러 번 거치면 처음 한번만 내부 로직이 실행된다
