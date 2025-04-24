@@ -263,3 +263,83 @@ http.addFilterAt(추가할필터, 기존필터.class);
 //특정 필터 이후
 http.addFilterAfter(추가할필터, 기존필터.class);
 ```
+
+## SecurityContextHolder
+
+### SecurityHolder가 필요한 이유
+![need-of-security-context-holder](./resources/need-of-security-context-holder.png)
+- `SecurityFilterChain` 내부에 존재하는 각각의 필터가 시큐리티 관련 작업을 진행한다
+- 모든 작업은 기능 단위로 분업하여 진행함으로 앞에서 한 작업을 뒤에 있는 필터가 알기 위한 저장소 개념이 필요하다
+- 예를 들어, 인가 필터가 작업을 하려면 유저의 ROLE 정보가 필요하기에 앞단의 필터에서 유저에게 부여한 ROLE 값을 인가 필터까지 공유해야 한다
+
+### Authentication 객체
+![authentication-structure](./resources/authentication-structure.png)
+- 유저 정보는 `Authentication`이라는 객체에 담긴다
+  - 이 객체에는 아이디, 로그인 여부, ROLE 등의 데이터가 담긴다
+- `Authentication` 객체는 `SecurityContext`에 포함되어 관리되며 `SecurityContext`는 0개 이상 존재할 수 있다
+- 그리고 이 N개의 `SecurityContext`는 하나의 `SecurityContextHolder`에 의해 관리된다
+- 객체 구조
+  - `Principal`: 유저에 대한 정보
+  - `Credentials`: 증명(비밀번호, 토큰)
+  - `Authorities`: 유저의 권한(ROLE) 목록
+- 접근 방법
+  ```java
+	SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+	SecurityContextHolder.getContext().getAuthentication().getCredentials();
+	SecurityContextHolder.getContext().getAuthentication().getAuthorities();
+	``` 
+	- `SecurityContextHolder`의 메서드는 `static`으로 선언되기 때문에 어디서든 접근할 수 있다
+- 특이사항
+  - 스프링은 멀티 쓰레드 환경에서 다수의 사용자가 접근할 수 있다
+  - 각 사용자들은 `SecurityContext`를 부여 받는다
+  - 이때, 사용자 별로 다른 저장소를 제공해야 인증 정보가 겹치는 일이 발생하지 않는다
+  - 따라서, `SecurityContextHolder`를 통해 `SecurityContext`를 관리하는 전략은 다른 클래스에 위임한다
+  - 즉, `SecurityContextHolder`는 `SecurityContext`를 관리하는 메서드를 제공하지만 실제로 등록, 초기화, 읽기와 같은 작업은 `SecuritytContextHolderStrategy` 인터페이스에 맡긴다
+
+### SecurityContextHolderStrategy 구현 종류
+```java
+private static void initializeStrategy() {
+
+	if (MODE_PRE_INITIALIZED.equals(strategyName)) {
+		Assert.state(strategy != null, "When using " + MODE_PRE_INITIALIZED
+				+ ", setContextHolderStrategy must be called with the fully constructed strategy");
+		return;
+	}
+	if (!StringUtils.hasText(strategyName)) {
+		// Set default
+		strategyName = MODE_THREADLOCAL;
+	}
+	if (strategyName.equals(MODE_THREADLOCAL)) {
+		strategy = new ThreadLocalSecurityContextHolderStrategy();
+		return;
+	}
+	if (strategyName.equals(MODE_INHERITABLETHREADLOCAL)) {
+		strategy = new InheritableThreadLocalSecurityContextHolderStrategy();
+		return;
+	}
+	if (strategyName.equals(MODE_GLOBAL)) {
+		strategy = new GlobalSecurityContextHolderStrategy();
+		return;
+	}
+	// Try to load a custom strategy
+	try {
+		Class<?> clazz = Class.forName(strategyName);
+		Constructor<?> customStrategy = clazz.getConstructor();
+		strategy = (SecurityContextHolderStrategy) customStrategy.newInstance();
+	}
+	catch (Exception ex) {
+		ReflectionUtils.handleReflectionException(ex);
+	}
+}
+```
+
+### ThreadLocal 방식에서 SecurityContext
+![security-context-holder-thread-local](./resources/security-context-holder-thread-local.png)
+- `SecurityContextHolderStrategy`는 기본적으로 `threadLocal` 방식을 사용한다
+- 톰캣 WAS는 멀티 쓰레드 방식으로 동작한다
+- 유저가 접속하면 유저에게 하나의 쓰레드를 할당한다
+- 각각의 유저는 동시에 시큐리티 로그인 로직을 사용할 수 있다
+- 이때, `SecurityContextHolder`의 `static` 필드에 선언된 `SecurityContext`를 호출하면 쓰레드간 공유하는 메모리의 code 영역에 데이터가 있기 때문에 정보가 덮어지는 현상이 발생할 것 같지만 `threadLocal`로 관리되기 때문에 쓰레드별 다른 구역을 나눠 제공한다
+
+### SecurityContext의 생명 주기
+- `Authentication` 객체를 관리하는 `SecurityContext`는 사용자의 요청이 서버로 들어오면 생성되고 요청의 처리가 끝난 후 응답되는 순간에 초기화 된다
