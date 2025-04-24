@@ -160,3 +160,106 @@
 			return web -> web.ignoring().requestMatchers("/img/**");
 	}
 	``` 
+
+## SecurityFilterChain 내부 구조
+
+### SecurityFilterChain
+- `SecurityFilterChain`은 스프링 시큐리티의 보안, 인증/인가 같은 주요 로직을 담당한다
+- 하나의 `SecurityFilterChain` 내부에 N개의 필터를 구성하여 각각의 필터가 하나의 로직(로그아웃, 로그인 등등) 수행의 시작점이 된다
+
+### SecurityFilterChain에 등록된 필터 확인
+- 기본 `SecurityFilterChain` 상태의 필터 목록
+  ```java
+	@Configuration
+	@EnableWebSecurity(debug = true)
+	public class SecurityConfig {
+
+	}
+	``` 
+  ![basic-security-filter-list](./resources/basic-security-filter-list.png) 
+
+- 커스텀 `SecurityFilterChain` 등록 시 필터 목록
+  ```java
+	@Configuration
+	@EnableWebSecurity(debug = true)
+	public class SecurityConfig {
+
+			@Bean
+			public SecurityFilterChain filterChain1(HttpSecurity http) throws Exception {
+
+					return http.build();
+			}
+	}
+	``` 
+	![custom-security-filter-list](./resources/custom-security-filter-list.png)
+
+### 스프링 시큐리티 제공 필터와 역할
+- `DisableEncodeUrlFilter`
+  - URL로 간주되지 않는 부분을 포함하지 않도록 설정
+  - 시큐리티에서 처리하지 않는 파라미터 값 등을 제외시킨다
+- `WebAsyncManagerIntegerationFilter`
+  - 비동기로 처리되는 작업에 대해 알맞은 시큐리티 컨텍스트(세션)을 적용
+  - 동일한 세션에 할당을 시켜준다
+- `SecurityContextHolderFilter`
+  - 접근한 유저가 이미 로그인되어 세션에 해당 정보가 있다면 동일한 세션을 매칭시켜준다
+  - 처음 접속하는 유저는 새로운 세션을 만들어준다
+- `HeaderWriterFilter`
+  - 보안을 위한 응답 헤더 추가(`X-Frame-Option`, `X-Content-Type-Options` 등)
+- `CorsFilter`
+  - `CORS` 설정 필터
+- `CsrfFilter`
+  - `CSRF` 방어 필터
+- `LogoutFilter`
+  - 로그아웃 요청 처리의 시작점이 되는 필터
+- `UsernamePasswordAuthenticationFilter`
+  - Username/Password 기반 로그인 처리 시작점이 되는 필터
+- `DefaultLoginPageGeneratingFilter`
+  - 기본 로그인 페이지를 생성해주는 필터
+- `DefaultLogoutPageGeneratingFilter`
+  - 기본 로그아웃 페이지를 생성해주는 필터
+- `BasicAuthenticationFilter`
+  - `HTTP Basic` 기반 로그인 처리 시작점이 되는 필터
+- `RequestCacheAwareFilter`
+  - 이전 요청 정보가 존재하면 처리 후 현재 요청으로 판단
+  - 로그인 페이지로 리다이렉트 되고 로그인을 하면 이전 요청을 재개
+- `SecurityContextHolderAwareRequestFilter`
+  - `ServletRequest`의 시큐리티 관련 API를 제공하는 필터
+- `AnonymousAuthenticationFilter`
+  - 최초 접속으로 인증 정보가 없고 인증을 하지 않았을 경우 익명 사용자로 초기화 설정을 해주는 필터
+- `ExceptionTranslationFilter`
+  - 인증/인가에 실패한 경우 예외에 대한 처리를 해주는 필터
+- `AuthorizationFilter`
+  - 경로 및 권한별 인가 작업을 진행하는 필터
+
+### SecurityFilterChain에서 필터 활성/비활성화
+```java
+// CORS 필터 
+http.cors((cors) -> cors.disable());
+
+// CSRF 필터
+http.csrf((csrf) -> csrf.disable());
+
+// UsernamePasswordAuthenticationFilter
+http.formLogin(withDefaults());
+http.formLogin((login) -> login.disable());
+
+// 로그인 / 로그아웃 페이지 필터
+// formLogin 활성화 시 기본적으로 활성화 (커스텀 시 기본 필터 비활성화)
+http.formLogin((login) -> login.loginPage("/login").permitAll());
+
+// BasicAuthenticationFilter
+http.httpBasic(withDefaults());
+http.httpBasic((basic) -> basic.disable());
+```
+
+### SecurityFilterChain에 커스텀 필터 등록
+```java
+// 특정 필터 이전
+http.addFilterBefore(추가할필터, 기존필터.class);
+
+//특정 필터 위치
+http.addFilterAt(추가할필터, 기존필터.class);
+
+//특정 필터 이후
+http.addFilterAfter(추가할필터, 기존필터.class);
+```
