@@ -439,6 +439,51 @@ public class LogoutFilter extends GenericFilterBean {
 ## DisableEncodeUrlFilter
 
 ### DisableEncodeUrlFilter의 목적
-- 이 필터는 `DefaultSecurityFilterChain`이 기본적으로 등록되는 필터로 가장 처음에 위치한다
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 가장 처음에 위치한다
 - 필터를 등록하는 목적은 URL 파라미터에 세션 id가 인코딩되어 로그로 유출되는 것을 방지하기 위함이다
 - 커스텀 `SecurityFilterChain`을 생성해도 등록이 되며 비활성화는 `SecurityConfig`에서 세션 관리 설정을 disable 하면 된다
+
+## WebAsyncManagerIntegrationFilter
+
+### WebAsyncManagerIntegrationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 두번째에 위치한다
+- 필터를 등록하는 목적은 서블릿단에서 비동기 작업을 수행할 때 서블릿 입출력 쓰레드와 작업 쓰레드가 동일한 `SecurityContextHolder`의 `SecurityContext` 영역을 참조할 수 있도록 하기 위함이다
+- 즉, `SecurityContextHolder`의 `ThreadLocal` 전략에 따라 동일한 쓰레드에서만 `SecurityContext`에 접근할 수 있는데 비동기 방식의 경우 하나의 작업을 2개의 쓰레드로 수행하기 때문에 이 부분을 보완하기 위한 필터이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록이 된다
+
+### Callable 사용 시 
+```java
+@GetMapping("/async")
+@ResponseBody
+public Callable<String> asyncPage() {
+
+    System.out.println("start" + SecurityContextHolder.getContext().getAuthentication().getName());
+
+    return () -> {
+        Thread.sleep(4000);
+        System.out.println("end" + SecurityContextHolder.getContext().getAuthentication().getName());
+
+        return "async";
+    };
+}
+```
+- 위와 같은 코드는 `Callable<>` 인터페이스로 감싸 반환이 되는 부분을 다른 쓰레드에서 수행하게 된다
+- API 내부의 출력과 반환문 안의 출력은 각기 다른 쓰레드에서 수행되지만 `ThreadLocal`로 관리되는 `SecurityContextHolder`의 값은 `WebAsyncManagerIntegrationFilter`와 다른 클래스들을 통해 동일하게 가져올 수 있다
+
+### 서블릿단에서 비동기 처리인데 어떻게 필터단에서 판단하는걸까?
+- `WebAsyncManagerIntegrationFilter`는 필터단에 존재하는데 어떻게 필터단 이후에 컨트롤러단에서 발생하는 쓰레드 문제를 처리할 수 있는 걸까?
+- 그 이유는 `WebAsyncManagerIntegrationFilter`가 실제로 수행하는 작업과 `Callable`의 동작 방식에 관련이 있다
+
+### WebAsyncManagerIntegrationFilter가 실제로 수행하는 작업
+- `WebAsyncManagerIntegrationFilter`는 현재 쓰레드의 `SecurityContext`를 다룰 수 있는 `SecurityContextCallableProcessingInterceptor`를 `WebAsyncManager`에 등록만 한다
+- 이후 서블릿단에서 `WebAsyncManager`를 통해 새로운 쓰레드에 `SecurityContext`를 복사한다
+
+### Callable 동작 방식과 DispatcherServlet
+- 사용자의 요청은 필터단을 모두 거친 후 스프링 컨테이너에서 컨트롤러에 접근하게 된다
+- 이때, 컨트롤러 바로 전에 `DispatcherServlet`이라는 서블릿이 존재하는데 사용자의 요청과 알맞은 컨트롤러(`Handler`)를 찾는 역할을 수행한다
+- `Callable` 수행 과정
+  - `DispatcherServlet`에서 알맞은 `Controller`를 찾아서 요청 전달
+  - `Controller`에서 요청 수행 후 `Callable` 부분을 `DispatcherServlet`으로 리턴
+  - `DispatcherServlet`은 `Callable` 객체를 `WebAsyncManager`에게 전달
+  - `WebAsyncManager`가 비동기 부분을 새로운 쓰레드에서 수행 후 응답
+- `WebAsyncManager`는 `WebAsyncManagerIntegrationFilter`에 의해 기존 쓰레드가 참조하던 `SecurityContext`를 전달 받았기 때문에 `Callable`을 수행할 새로운 쓰레드에게 기존 `SecurityContext`를 전달할 수 있다
