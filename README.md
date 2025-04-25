@@ -590,3 +590,23 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - 하지만, JWT를 쿠키에 저장할 경우 CSRF 공격의 위험이 있기 때문에 활성화 하는 것이 좋다
 - 다만 CSRF 토큰을 발급할 `VIEW` 페이지와 같은 로직이 없기 때문에 토큰 방식이 아닌 `Referer` 방식을 사용한다
   - 이 방식은 `HTTP Referer` 헤더를 통해 요청의 출발점, 이전 URL등을 검증한다
+
+## LogoutFilter
+
+### LogoutFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 일곱번째에 위치한다
+- 이 필터를 등록하는 목적은 인증 후 생성되는 사용자 식별 정보를 로그아웃 핸들러를 통해 로그아웃을 수행하기 위함이다
+- 기본적으로 세션 방식에 대한 로그아웃 설정이 되어 있기 때문에 JWT 방식을 사용하거나 추가할 로직이 많을 경우 커스텀 해야 한다
+- 커스텀 `SecurityFilerChain`을 생성해도 자동으로 등록되며 비활성화가 가능하다
+  ```java
+	http.logout((logout) -> logout.disable());
+	``` 
+
+### LogoutHandler
+- 로그아웃 핸들러들은 `LogoutHandler` 인터페이스를 구현한 클래스들로 이루어져 있으며 커스텀 핸들러 생성 시에도 `LogoutHandler` 인터페이스 기반으로 작성해야 한다
+- 기본 제공 핸들러
+  - `SecurityContextLougoutHandler`: `SecurityContenxtHolader`에 존재하는 `SecurityContext` 초기화
+  - `CookieClearingLoguoutHandler`: `SecurityFilterChain`의 `logout` 메서드에서 지정한 쿠키 삭제
+  - `HeaderWriterLogoutHandler`: 클라이언트에게 반활될 헤더 조작
+  - `LogoutSuccessEventPublishingLogoutHandler`: 로그아웃 성공 후 특정 이벤트 실행
+- `CompositeLogoutHandler` 클래스에서 등록된 모든 로그아웃 핸들러를 순회하면서 로그아웃을 수행한다
