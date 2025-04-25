@@ -557,3 +557,36 @@ API 서버를 구축할 때 프론트와 백엔드의 Origin이 다르면 CORS �
 - 두 추상 클래스 모두 `Filter` 인터페이스를 구현하지만 `GenericFilter`는 스프링에서 사용하는 `POJO`이기 때문에 엄밀히 말하면 스프링과 연관이 없고 Bean으로 관리되지 않는다
 - `CorsFilter`는 스프링 시큐리티 의존성에 포함된 것이 맞지만 시큐리티를 위해 처음부터 개발된 것이 아니다
 - 즉, 시큐리티 이전의 자바 서블릿 생태계에서 이미 존재했기 때문에 `GenericFilter` 기반으로 구현되어 있다
+
+## CsrfFilter
+
+### CsrfFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 여섯번째에 위치한다
+- 필터를 등록하는 목적은 CSRF 공격을 방어하기 위해 HTTP 메서드 중 GET, HEAD, TRACE, OPTIONS 메서드를 제외한 요청에 대해서 검증을 진행하기 위함이다
+- 스프링 시큐리티의 CSRF 검증 방식은 토큰 방식이며 요청 시 토큰을 서버 저장소에 저장 후 클라이언트에게 전송한다
+- 그 후 해당하는 요청에 대해서 서버에 저장된 토큰과 비교 검증을 한다
+  ![csrf-filter-flow](./resources/csrf-filter-flow.png) 
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록되며 비활성화가 가능하다
+  ```java
+	http.csrf((csrf) -> csrf.disable())
+	``` 
+>참고:  
+CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자의 브라우저를 통해 서버측으로 특정한 요청을 보내도록 공격하는 방법이다 
+
+### CsrfTokenRepository
+- CSRF 토큰의 생성 및 관리는 `CsrfTokenRepository`라는 인터페이스를 정의하고 이를 구현한 클래스에게 위임한다
+  - `HttpSessionCsrfTokenRepository`: 서버 세션에 토큰을 저장/관리함 (기본값)
+  - `CookieCsrfTokenRepository`: 쿠키에 토큰을 저장/관리함
+  - 직접 구현도 가능
+
+### CSRF 토큰 발급
+- 기본 동작은 SSR 세션 방식으로 설정되어 있다
+  - `STATELESS`한 REST API에서는 사용할 일이 없기 때문
+- `Controller`단에서 `VIEW`단으로 응답 시 `HTML`의 `Form` 영역에 서버에 저장되어 있는 `_csrf` 토큰 값을 넣어주면 된다
+
+### CSRF Referer
+- `STATELESS`한 REST API 서버를 구축한다면 `JSESSION`에 대한 서버 세션이 상태를 가지지 않기 때문에 CSRF 공격 위험 자체가 없다
+- 따라서, CSRF 설정을 disable하는게 일반적인 구현이다
+- 하지만, JWT를 쿠키에 저장할 경우 CSRF 공격의 위험이 있기 때문에 활성화 하는 것이 좋다
+- 다만 CSRF 토큰을 발급할 `VIEW` 페이지와 같은 로직이 없기 때문에 토큰 방식이 아닌 `Referer` 방식을 사용한다
+  - 이 방식은 `HTTP Referer` 헤더를 통해 요청의 출발점, 이전 URL등을 검증한다
