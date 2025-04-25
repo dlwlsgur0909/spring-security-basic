@@ -610,3 +610,55 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
   - `HeaderWriterLogoutHandler`: 클라이언트에게 반활될 헤더 조작
   - `LogoutSuccessEventPublishingLogoutHandler`: 로그아웃 성공 후 특정 이벤트 실행
 - `CompositeLogoutHandler` 클래스에서 등록된 모든 로그아웃 핸들러를 순회하면서 로그아웃을 수행한다
+
+## UsernamePasswordAuthenticationFilter
+
+### UsernamePasswordAuthenticationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 여덟번째에 위치한다
+- 필터를 등록하는 목적은 `POST: /login` 경로에서 Form 기반 인증을 진행할 수 있도록 `multipart/form-data` 형태의 username/password 데이터를 받아 인증 클래스에게 값을 넘겨주기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성하면 자동으로 등록이 되지 않고 명시적으로 활성화 시킬 수 있다
+  ```java
+	http.formLogin(Customizer.withDefaults());
+	``` 
+
+### AbstractAuthenticationProcessingFilter
+- `UsernamePasswordAuthenticationFilter`에는 `doFilter()` 메서드가 없다
+- `doFilter()` 메서드는 부모 클래스인 `AbstractAuthenticationProcessingFilter` 클래스에 존재한다
+- 그 이유는 데이터를 보내는 방식이 변경되어도 인증 과정은 동일하기 때문이다
+  - `UsernamePasswordAuthenticationFilter`는 Form 로그인 방식에 대한 필터이다
+    - 사용자에게 데이터를 받아 인증 시도 -> 인증 결과 반환 -> 결과에 따라 성공/실패 처리
+  - 사용자가 보내는 데이터를 Form 방식에서 JSON 방식으로 변경해도 인증 과정은 변하지 않는다
+  - 따라서, 추상 클래스인 `AbstractAuthenticationProcessingFilter`를 정의하고 데이터를 보내는 방식에 따라 필터를 구현해서 사용한다
+- `AbstractAuthenticationProcessingFilter`에는 `attemptAuthentication()` 추상 메서드가 있는데 이 부분을 상황에 따라 구현하면 된다
+
+### 로그인이 수행되는 과정
+- `UsernamePasswordAuthenticationFilter`는 `attemptAuthenticaiton()` 메서드를 아래와 같이 오버라이딩 했다
+  ```java
+	@Override
+	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+			throws AuthenticationException {
+			
+		// 로그인 경로 요청인지 확인
+		if (this.postOnly && !request.getMethod().equals("POST")) {
+			throw new AuthenticationServiceException("Authentication method not supported: " + request.getMethod());
+		}
+		
+		// 요청으로부터 multipart/form-data로 전송되는 username, password 획득
+		String username = obtainUsername(request);
+		username = (username != null) ? username.trim() : "";
+		String password = obtainPassword(request);
+		password = (password != null) ? password : "";
+		
+		// 인증을 위해 위 데이터를 인증 토큰에 넣음
+		UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.unauthenticated(username,
+				password);
+		// Allow subclasses to set the "details" property
+		setDetails(request, authRequest);
+		
+		// username/password 기반 인증을 진행하는 AuthenticationManager에게 인증을 요청 후 응답
+		return this.getAuthenticationManager().authenticate(authRequest);
+	}
+	``` 
+- 해당 메서드에서는 유저가 보낸 정보를 `AuthenticationManager`에게 넘긴다
+- username/password 기반의 이후 로그인 과정은 아래와 같다
+  ![login-process](./resources/login-process.png) 
