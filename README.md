@@ -676,3 +676,13 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
   ```java
 	http.formLogin((login) -> login.loginPage("/커스텀경로"));
 	``` 
+
+## DefaultLogoutPageGeneratingFilter
+
+### DefaultLogoutPageGeneratingFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열번째에 위치한다
+- 이 필터를 등록하는 목적은 `GET: /logout` 경로에 대해 기본 로그아웃 페이지를 응답하기 위해서다
+- 커스텀 `SecurityFilterChain`을 사용하면 자동으로 등록되지 않고 명시적으로 활성화시킬 수 있다
+  ```java
+	http.formLogin(Customizer.withDefaults());
+	``` 
