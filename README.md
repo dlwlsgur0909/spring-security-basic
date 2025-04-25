@@ -662,3 +662,17 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - 해당 메서드에서는 유저가 보낸 정보를 `AuthenticationManager`에게 넘긴다
 - username/password 기반의 이후 로그인 과정은 아래와 같다
   ![login-process](./resources/login-process.png) 
+
+## DefaultLoginPageGeneratingFilter
+
+### DefaultLoginPageGeneratingFilter의 목적
+- 이 필터는 `SecurityFilterChain`에 기본적으로 등록되는 필터로 아홉번째에 위치한다
+- 이 필터를 등록하는 목적은 `GET: /login` 경로에 대해 기본 로그인 페이지를 응답하는 역할을 수행한다
+- 커스텀 `SecurityFilterChain`을 생성하면 자동으로 등록되지 않고 명시적으로 활성화시킬 수 있다
+  ```java
+	http.formLogin(Customizer.withDefaults());
+	``` 
+- 커스텀 `SecurityFilterChain` 생성 시 아래와 같은 설정을 통해 커스텀 로그인 페이지를 사용할 수 있다
+  ```java
+	http.formLogin((login) -> login.loginPage("/커스텀경로"));
+	``` 
