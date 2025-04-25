@@ -516,7 +516,7 @@ public Callable<String> asyncPage() {
 
 ### HeaderWriterFilter의 목적
 - 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 네번째에 위치한다
-- 필터가 등록되는 목적은 HTTP 응답 헤더에 사용자 보호를 위한 시큐리티 관련 헤더를 추가하기 위함이다
+- 필터를 등록하는 목적은 HTTP 응답 헤더에 사용자 보호를 위한 시큐리티 관련 헤더를 추가하기 위함이다
 - 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록되고 비활성화가 가능하다
   ```java
 	http.headers((headers) -> headers.disable());
@@ -538,3 +538,22 @@ public Callable<String> asyncPage() {
 	|`Pragma`| HTTP/1.0 방식에서 사용하던 `Cache-Control`|
 	|`Expires`| 서버에서 보낼 데이터를 브라우저에서 캐싱할 시간|
 	|`X-Frame-Options`| 브라우저가 응답 데이터를 iframe, frame, embed, object 태그에서 로딩해도 되는 여부
+
+## CorsFilter
+
+### CorsFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 다섯번째에 위치한다
+- 필터를 등록하는 목적은 `CorsConfigurationSource`에 설정한 값에 따라 필터단에서 응답 헤더를 설정하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록되며 비활성화가 가능하다
+  ```java
+	http.cors((cors) -> cors.disable());
+	``` 
+>참고:  
+API 서버를 구축할 때 프론트와 백엔드의 Origin이 다르면 CORS 문제가 발생한다  
+문제 해결을 위해서는 `SecurityFilterChain`의 `CorsConfigurationSource` 값을 설정하는게 중요하다
+
+### GenericFilter
+- `CorsFilter`는 스프링 시큐리티를 구성하는 다른 필터들과 다르게 `GenericFilterBean` 추상 클래스가 아닌 `GenericFilter` 추상 클래스를 상속 받는다
+- 두 추상 클래스 모두 `Filter` 인터페이스를 구현하지만 `GenericFilter`는 스프링에서 사용하는 `POJO`이기 때문에 엄밀히 말하면 스프링과 연관이 없고 Bean으로 관리되지 않는다
+- `CorsFilter`는 스프링 시큐리티 의존성에 포함된 것이 맞지만 시큐리티를 위해 처음부터 개발된 것이 아니다
+- 즉, 시큐리티 이전의 자바 서블릿 생태계에서 이미 존재했기 때문에 `GenericFilter` 기반으로 구현되어 있다
