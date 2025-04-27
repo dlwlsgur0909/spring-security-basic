@@ -735,3 +735,11 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - `login()`: 사용자가 `AuthenticationManager`를 활용하여 인증을 진행하는 메서드
 - `logout()`: 사용자가 로그아웃 핸들러를 호출할 수 있는 메서드
 - `AsyncContext.start()`: `Callable`을 사용하여 비동기 처리를 진행할 때 `SecurityContext`를 복사하도록 설정하는 메서드
+
+## AnonymousAuthenticationFilter
+
+### AnonymousAuthenticationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열네번째에 위치한다
+- 이 필터가 등록되는 목적은 여러 필터를 거치면서 현재 지점까지 `SecurityContext`값이 `null`인 경우 `Anonymous`값을 넣어주기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록된다
+
