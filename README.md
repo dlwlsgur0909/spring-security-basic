@@ -722,3 +722,16 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 ### 핸들 시점
 - 예외를 처리하는 필터인 `ExceptionTranslationFilter`에서 `ExceptionTranslationFilter` 이후에 발생하는 예외들을 모두 받는다
 - 이때, `AccessDeniedException`과 같은 몇몇 예외 발생 시 내부 메서드 `sendStartAuthentication()` 메서드가 실행되는데 여기서 `requestCache`를 저장한다
+
+## SecurityContextHolderAwareRequestFilter
+
+### SecurityContextHolderAwareRequestFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열세번째에 위치한다
+- 이 필터가 등록되는 목적은 `ServletRequest` 요청에 스프링 시큐리티 API를 다룰 수 있는 메서드를 추가하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록된다
+
+### 추가되는 스프링 시큐리티 API 메서드
+- `authenticate()`: 사용자가 인증 여부를 확인하는 메서드
+- `login()`: 사용자가 `AuthenticationManager`를 활용하여 인증을 진행하는 메서드
+- `logout()`: 사용자가 로그아웃 핸들러를 호출할 수 있는 메서드
+- `AsyncContext.start()`: `Callable`을 사용하여 비동기 처리를 진행할 때 `SecurityContext`를 복사하도록 설정하는 메서드
