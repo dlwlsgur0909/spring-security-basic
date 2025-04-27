@@ -743,3 +743,60 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - 이 필터가 등록되는 목적은 여러 필터를 거치면서 현재 지점까지 `SecurityContext`값이 `null`인 경우 `Anonymous`값을 넣어주기 위함이다
 - 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록된다
 
+## ExceptionTranslationFilter
+
+### ExceptionTranslationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열다섯번째에 위치한다
+- 이 필터가 등록되는 목적은 이 필터 이후에 발생하는 인증, 인가 예외를 핸들링하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성하면 자동으로 등록된다
+
+### 예외 처리
+- 인증/인가 예외를 핸들링하는 시작점은 `handleSpringSecurityException()`이다
+  ```java
+	private void handleSpringSecurityException(HttpServletRequest request, HttpServletResponse response, FilterChain chain, RuntimeException exception) throws IOException, ServletException {
+		if (exception instanceof AuthenticationException) {
+			handleAuthenticationException(request, response, chain, (AuthenticationException) exception);
+		}
+		else if (exception instanceof AccessDeniedException) {
+			handleAccessDeniedException(request, response, chain, (AccessDeniedException) exception);
+		}
+	}
+	``` 
+
+- 인증 예외는 `handleAuthenticationException()`에서 처리한다
+  ```java
+	private void handleAuthenticationException(HttpServletRequest request, HttpServletResponse response, FilterChain chain, AuthenticationException exception) throws ServletException, IOException {
+		this.logger.trace("Sending to authentication entry point since authentication failed", exception);
+		sendStartAuthentication(request, response, chain, exception);
+	}
+	``` 
+
+- 인가 예외는 `handleAccessDeniedException()`에서 처리한다
+  ```java 
+	private void handleAccessDeniedException(HttpServletRequest request, HttpServletResponse response, FilterChain chain, AccessDeniedException exception) throws ServletException, IOException {
+		Authentication authentication = this.securityContextHolderStrategy.getContext().getAuthentication();
+		boolean isAnonymous = this.authenticationTrustResolver.isAnonymous(authentication);
+		if (isAnonymous || this.authenticationTrustResolver.isRememberMe(authentication)) {
+			if (logger.isTraceEnabled()) {
+				logger.trace(LogMessage.format("Sending %s to authentication entry point since access is denied",
+						authentication), exception);
+			}
+			sendStartAuthentication(request, response, chain,
+					new InsufficientAuthenticationException(
+							this.messages.getMessage("ExceptionTranslationFilter.insufficientAuthentication",
+									"Full authentication is required to access this resource")));
+		}
+		else {
+			if (logger.isTraceEnabled()) {
+				logger.trace(
+						LogMessage.format("Sending %s to access denied handler since access is denied", authentication),
+						exception);
+			}
+			this.accessDeniedHandler.handle(request, response, exception);
+		}
+	}
+	```
+
+- 중요한 점
+  - `ExceptionTranslationFilter`는 해당 필터 이전에 발생하는 예외의 경우 처리하지 못한다
+  - 예를 들어, `UsernamePasswordAuthenticationFilter`는 `ExceptionTranslationFilter` 보다 앞에 존재하기 때문에 `UsernamePasswordAuthenticationFilter`에서 발생한 예외는 `ExceptionTranslationFitler`에서 처리할 수 없다
