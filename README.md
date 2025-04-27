@@ -800,3 +800,17 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - 중요한 점
   - `ExceptionTranslationFilter`는 해당 필터 이전에 발생하는 예외의 경우 처리하지 못한다
   - 예를 들어, `UsernamePasswordAuthenticationFilter`는 `ExceptionTranslationFilter` 보다 앞에 존재하기 때문에 `UsernamePasswordAuthenticationFilter`에서 발생한 예외는 `ExceptionTranslationFitler`에서 처리할 수 없다
+
+## AuthorizationFilter
+
+### AuthorizationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 마지막에 위치한다
+- 이 필터가 등록되는 목적은 `SecurityFilterChain`의 `authorizeHttpRequests()`를 통해 설정한 값에 따라 인가 작업을 진행하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 기본적으로 등록되며 명시적으로 인가 설정을 할 수 있다
+  ```java
+	http
+			.authorizeHttpRequests((auth) -> auth
+				.requestMatchers("/").permitAll()
+				.anyRequest().permitAll()
+			);
+	``` 
