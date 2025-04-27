@@ -701,3 +701,24 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
 - `Basic` 인증 방식은 브라우저에서 제공하는 입력기에 `username`과 `password`를 입력하면 브라우저가 매 요청 시 `BASE64`로 인코딩하여 `Authorization` 헤더에 넣어서 전송한다
 - 서버는 요청에 대해 `username`과 `password`를 확인 후 사용자를 기억하지 않기 때문에 매 요청 시 `Authorization` 헤더가 요구된다
 - 하지만, 스프링 시큐리티의 `Basic` 인증 로직은 매번 재인증을 요구하는 것이 아니라 세션에 값을 저장해서 유저를 기억한다
+
+## RequestCacheAwareFilter
+
+### RequestCacheAwareFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열두번째에 위치한다
+- 이 필터가 등록되는 목적은 이전 HTTP 요청에서 처리할 작업이 있고 현재 요청에서 그 작업을 수행하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성해도 자동으로 등록되고 비활성화가 가능하다
+  ```java
+	http.requestCache((cache) -> cache.disable());
+	``` 
+
+### 동작 예시
+1. 로그인하지 않은 사용자가 권한이 필요한 `/my` 경로에 접근
+2. 권한 없음 예외가 발생하고 핸들러에서 `/my` 경로를 저장 후 핸들 작업 실행
+3. 스프링 시큐리티가 `/login` 창을 띄움
+4. `username`과 `password`를 입력 후 인증을 진행
+5. 로그인 이후 저장되어 있는 `/my` 경로를 실행
+
+### 핸들 시점
+- 예외를 처리하는 필터인 `ExceptionTranslationFilter`에서 `ExceptionTranslationFilter` 이후에 발생하는 예외들을 모두 받는다
+- 이때, `AccessDeniedException`과 같은 몇몇 예외 발생 시 내부 메서드 `sendStartAuthentication()` 메서드가 실행되는데 여기서 `requestCache`를 저장한다
