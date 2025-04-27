@@ -686,3 +686,18 @@ CSRF 공격은 사용자의 의지와 무관하게 해커가 강제로 사용자
   ```java
 	http.formLogin(Customizer.withDefaults());
 	``` 
+
+## BasicAuthenticationFilter
+
+### BasicAuthenticationFilter의 목적
+- 이 필터는 `DefaultSecurityFilterChain`에 기본적으로 등록되는 필터로 열한번째에 위치한다
+- 이 필더가 등록되는 목적은 `Basic` 기반의 인증을 수행하기 위함이다
+- 커스텀 `SecurityFilterChain`을 생성하면 자동으로 등록되지 않고 명시적으로 활성화시킬 수 있다
+  ```java
+	http.httpBasic(Customizer.withDefaults());
+	``` 
+
+### Basic 인증이란?
+- `Basic` 인증 방식은 브라우저에서 제공하는 입력기에 `username`과 `password`를 입력하면 브라우저가 매 요청 시 `BASE64`로 인코딩하여 `Authorization` 헤더에 넣어서 전송한다
+- 서버는 요청에 대해 `username`과 `password`를 확인 후 사용자를 기억하지 않기 때문에 매 요청 시 `Authorization` 헤더가 요구된다
+- 하지만, 스프링 시큐리티의 `Basic` 인증 로직은 매번 재인증을 요구하는 것이 아니라 세션에 값을 저장해서 유저를 기억한다
